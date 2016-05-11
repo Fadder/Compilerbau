@@ -3,13 +3,24 @@
 
 /* *** structures *********************************************************** */
 
-typedef /* muss noch definiert werden */ syntree_nid;
+typedef int syntree_nid;
 
 /**@brief Struktur des abstrakten Syntaxbaumes.
  */
 typedef struct
 {
-    // hier sollte noch etwas dazu kommen
+  // hier sollte noch etwas dazu kommen
+  struct{
+    syntree_nid id;
+    union{
+      int number;
+      struct{
+        syntree_t* child;
+        syntree_t* next;
+      } childrenList;
+    }
+  } elem;
+  struct syntree_t* next;
 } syntree_t;
 
 /* *** interface ************************************************************ */
