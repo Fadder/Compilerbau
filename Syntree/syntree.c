@@ -33,13 +33,10 @@ getNewNode(){
 syntree_t*
 getNode(syntree_nid id){
   listNode_t* current = syntreeNodes;
-  syntree_nid lastID = (current) ? current->elem->id : 0;
-  int i;
-  for(i = 0; i < lastID-id; ++i){
+  while(current && current->elem->id != id){
     current = current->prev;
   }
-
-  if(current->elem->id != id){
+  if(!current){
     fprintf(stderr, "There is no node with ID %i :(\n", id);
     abort();
   }
