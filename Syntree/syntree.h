@@ -3,25 +3,45 @@
 
 /* *** structures *********************************************************** */
 
+// Eindeutiger Bezeichner eines Knotens anhand einer natürlichen Zahl
 typedef unsigned int syntree_nid;
 
-struct childrenList;
+// forward declaration for use in struct node
+struct nodeList;
 
-/**@brief Struktur des abstrakten Syntaxbaumes.
+/**@brief Hier versteckt sich die eigentliche Baumstruktur.
+ * id         ID des Knotens
+ * nodeType   entscheidet zwischen Listen- und Wertknoten
+ * content    Liste von Kindern oder Zahlenwert
  */
-typedef struct syntree{
+typedef struct node{
   syntree_nid id;
   enum {LIST,LEAF} nodeType;
   union{
     int number;
-    struct childrenList* children;
+    struct nodeList* children;
   } content;
-} syntree_t;
+} node_t;
 
-typedef struct childrenList{
-  syntree_t* elem;
-  struct childrenList* next;
-} children_t;
+/**@brief Eine Listenstruktur zur Verwaltung von Knoten und Kindern.
+ * elem   das Element
+ * next   Verweis auf das nächste Element
+ */
+typedef struct nodeList{
+  node_t* elem;
+  struct nodeList* next;
+} nodeList_t;
+
+/**@brief Struktur des abstrakten Syntaxbaumes.
+ * Syntree verwaltet nur eine Liste an Knoten.
+ * Es obliegt dem Nutzer einen bestimmten Knoten als Wurzelknoten auszuzeichnen.
+ * Die eigentliche Baumstruktur findet sich in struct node.
+ *
+ * nodes  die Knotenliste
+ */
+typedef struct syntree{
+  nodeList_t* nodes;
+} syntree_t;
 
 
 /* *** interface ************************************************************ */
