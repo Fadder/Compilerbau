@@ -4,35 +4,35 @@
 #include <stdlib.h>
 
 
-typedef struct list_node {
+typedef struct listNode {
   syntree_t* elem;
-  struct list_node* prev;
-} node;
+  struct listNode* prev;
+} listNode_t;
 
 
-node* syntreeNodes = NULL;
+listNode_t* syntreeNodes = NULL;
 
 
 syntree_t*
 getNewNode(){
   static syntree_nid id = -1;
-  node* newNode      = (node*) malloc(sizeof(node));
-  syntree_t* newTree = (syntree_t*) malloc(sizeof(syntree_t));
-  if(!newNode || !newTree){
+  listNode_t* list = (listNode_t*) malloc(sizeof(listNode_t));
+  syntree_t* tree  = (syntree_t*) malloc(sizeof(syntree_t));
+  if(!list || !tree){
     fprintf(stderr, "memory allocation went wrong :(\n");
     return NULL;
   }
-  newNode->elem = newTree;
-  newNode->prev = syntreeNodes;
-  syntreeNodes = newNode;
-  newTree->id = ++id;
-  return newTree;
+  list->elem = tree;
+  list->prev = syntreeNodes;
+  syntreeNodes = list;
+  tree->id = ++id;
+  return tree;
 }
 
 
 syntree_t*
 getNode(syntree_nid id){
-  node* current = syntreeNodes;
+  listNode_t* current = syntreeNodes;
   syntree_nid lastID = (current) ? current->elem->id : 0;
   int i;
   for(i = 0; i < lastID-id; ++i){
@@ -49,19 +49,29 @@ getNode(syntree_nid id){
 
 extern int
 syntreeInit(syntree_t* self){
-  node* newNode      = (node*) malloc(sizeof(node));
-  if(!newNode || !self){
+  listNode_t* list = (listNode_t*) malloc(sizeof(listNode_t));
+  if(!list || !self){
     fprintf(stderr, "memory allocation went wrong :(\n");
     return 1;
   }
-  newNode->elem = self;
-  newNode->prev = syntreeNodes;
-  syntreeNodes = newNode;
-  self->id = 0;
-  self->nodeType      = LIST;
-  self->elem.children = NULL;
-  self->next          = NULL;
+  list->elem   = self;
+  list->prev   = syntreeNodes;
+  syntreeNodes = list;
+  self->id               = 0;
+  self->nodeType         = LIST;
+  self->content.children = NULL;
   return 0;
+}
+
+void
+childrenRelease(children_t* self){
+  if(!self){
+    return;
+  }
+  if(self->next){
+    childrenRelease(self->next);
+  }
+  syntreeRelease(self->elem);
 }
 
 extern void
@@ -71,10 +81,8 @@ syntreeRelease(syntree_t* self){
   }
   printf("\nReleasing %u\n", self->id);
   if(self->nodeType == LIST){
-    syntreeRelease(self->elem.children);
+    childrenRelease((children_t*) self->content.children);
   }
-  syntreeRelease(self->next);
-  self = getNode(self->id);
   free(self);
 }
 
@@ -82,8 +90,7 @@ extern syntree_nid
 syntreeNodeNumber(syntree_t* self, int number){
   syntree_t* newNode = getNewNode();
   newNode->nodeType    = LEAF;
-  newNode->elem.number = number;
-  newNode->next        = NULL;
+  newNode->content.number = number;
 
   syntreePrint(self, newNode->id);
   fprintf(stdout, " Number\n");
@@ -92,12 +99,13 @@ syntreeNodeNumber(syntree_t* self, int number){
 
 extern syntree_nid
 syntreeNodeTag(syntree_t* self, syntree_nid id){
-  syntree_t* encapsulated = getNode(id);
   syntree_t* capsule = getNewNode();
+  children_t* encapsulated = (children_t*) malloc(sizeof(children_t));
+  encapsulated->elem = getNode(id);
+  encapsulated->next = NULL;
 
-  capsule->nodeType      = LIST;
-  capsule->elem.children = encapsulated;
-  capsule->next          = NULL;
+  capsule->nodeType = LIST;
+  capsule->content.children = encapsulated;
 
   syntreePrint(self, capsule->id);
   fprintf(stdout, " Tag\n");
@@ -107,15 +115,18 @@ syntreeNodeTag(syntree_t* self, syntree_nid id){
 
 extern syntree_nid
 syntreeNodePair(syntree_t* self, syntree_nid id1, syntree_nid id2){
-  syntree_t* capsule = getNewNode();
-  capsule->nodeType      = LIST;
-  capsule->elem.children = NULL;
-  capsule->next          = NULL;
+  syntree_t* capsule        = getNewNode();
+  capsule->nodeType         = LIST;
+  capsule->content.children = NULL;
 
-  syntree_t* encapsulated1 = getNode(id1);
-  syntree_t* encapsulated2 = getNode(id2);
-  capsule->elem.children   = encapsulated1;
-  encapsulated1->next      = encapsulated2;
+  children_t* encapsulated1 = (children_t*) malloc(sizeof(children_t));
+  children_t* encapsulated2 = (children_t*) malloc(sizeof(children_t));
+  encapsulated1->elem = getNode(id1);
+  encapsulated2->elem = getNode(id2);
+
+  capsule->content.children = encapsulated1;
+  encapsulated1->next       = encapsulated2;
+  encapsulated2->next       = NULL;
 
   syntreePrint(self, capsule->id);
   fprintf(stdout, " Pair\n");
@@ -125,20 +136,21 @@ syntreeNodePair(syntree_t* self, syntree_nid id1, syntree_nid id2){
 
 extern syntree_nid
 syntreeNodeAppend(syntree_t* self, syntree_nid list, syntree_nid elem){
-  syntree_t* listNode = getNode(list);
-  syntree_t* elemNode = getNode(elem);
+  syntree_t* listNode   = getNode(list);
+  children_t* elemChild = (children_t*) malloc(sizeof(children_t));
+  elemChild->elem = getNode(elem);
+  elemChild->next = NULL;
 
   if(listNode->nodeType == LIST){
-    syntree_t* current = listNode->elem.children;
+    children_t* current = listNode->content.children;
     if(!current){
-      listNode->elem.children = elemNode;
+      listNode->content.children = elemChild;
     }
     else{
       while(current->next){
         current = current->next;
       }
-      current->next = elemNode;
-      elemNode->next = NULL;
+      current->next = elemChild;
     }
   }
   else{
@@ -153,39 +165,38 @@ syntreeNodeAppend(syntree_t* self, syntree_nid list, syntree_nid elem){
 
 extern syntree_nid
 syntreeNodePrepend(syntree_t* self, syntree_nid elem, syntree_nid list){
-  syntree_t* elemNode = getNode(elem);
   syntree_t* listNode = getNode(list);
+  children_t* elemChild = (children_t*) malloc(sizeof(children_t));
+  elemChild->elem = getNode(elem);
+  elemChild->next = NULL;
+
   if(listNode->nodeType == LIST){
-    if(elemNode->next){
-      fprintf(stderr, "Elem node with ID %i is already a child :(\n", elem);
-      abort();
-    }
-    syntree_t* firstChild = listNode->elem.children;
-    listNode->elem.children = elemNode;
-    elemNode->next = firstChild;
-    syntreePrint(self, list);
-    fprintf(stdout, " Prepend\n");
-    return list;
+    children_t* children = listNode->content.children;
+    listNode->content.children = elemChild;
+    elemChild->next = children;
   }
   else{
     fprintf(stderr, "Node with ID %i is no list node :(\n",list);
     abort();
   }
+  syntreePrint(self, list);
+  fprintf(stdout, " Prepend\n");
+  return list;
 }
 
 
 extern void
 syntreePrint(const syntree_t* self, syntree_nid root){
-  syntree_t* current;
+  children_t* current;
   syntree_t* rootNode = getNode(root);
   if(rootNode->nodeType == LEAF){
-    fprintf(stdout,"(%i)",rootNode->elem.number);
+    fprintf(stdout,"(%i)",rootNode->content.number);
   }
   else{
     fprintf(stdout, "{");
-    current = rootNode->elem.children;
+    current = rootNode->content.children;
     while(current){
-      syntreePrint(current, current->id);
+      syntreePrint(current->elem, current->elem->id);
       current = current->next;
     }
     fprintf(stdout, "}");

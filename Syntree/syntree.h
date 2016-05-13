@@ -5,6 +5,8 @@
 
 typedef unsigned int syntree_nid;
 
+struct childrenList;
+
 /**@brief Struktur des abstrakten Syntaxbaumes.
  */
 typedef struct syntree{
@@ -12,10 +14,14 @@ typedef struct syntree{
   enum {LIST,LEAF} nodeType;
   union{
     int number;
-    struct syntree* children;
-  } elem;
-  struct syntree* next;
+    struct childrenList* children;
+  } content;
 } syntree_t;
+
+typedef struct childrenList{
+  syntree_t* elem;
+  struct childrenList* next;
+} children_t;
 
 
 /* *** interface ************************************************************ */
