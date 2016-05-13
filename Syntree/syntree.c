@@ -33,7 +33,7 @@ getNewNode(){
 syntree_t*
 getNode(syntree_nid id){
   listNode_t* current = syntreeNodes;
-  while(current && current->elem->id != id){
+  while(current && current->elem->id > id){
     current = current->prev;
   }
   if(!current){
