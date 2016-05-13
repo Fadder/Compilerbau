@@ -3,25 +3,20 @@
 
 /* *** structures *********************************************************** */
 
-typedef int syntree_nid;
+typedef unsigned int syntree_nid;
 
 /**@brief Struktur des abstrakten Syntaxbaumes.
  */
-typedef struct
-{
-  // hier sollte noch etwas dazu kommen
-  struct{
-    syntree_nid id;
-    union{
-      int number;
-      struct{
-        syntree_t* child;
-        syntree_t* next;
-      } childrenList;
-    }
+typedef struct syntree{
+  syntree_nid id;
+  enum {LIST,LEAF} nodeType;
+  union{
+    int number;
+    struct syntree* children;
   } elem;
-  struct syntree_t* next;
+  struct syntree* next;
 } syntree_t;
+
 
 /* *** interface ************************************************************ */
 
