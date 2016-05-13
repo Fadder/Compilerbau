@@ -1,13 +1,19 @@
-#ifndef STACK_H_INCLUDED
+﻿#ifndef STACK_H_INCLUDED
 #define STACK_H_INCLUDED
 
 /* *** structures *********************************************************** */
 
 /**@brief Struktur des Stacks.
  */
-typedef struct
+typedef struct intstack_t
 {
-    // hier sollte noch etwas dazu kommen
+	struct elem
+	{
+		int val;
+		struct elem *prev;
+	} *top;
+
+	int size;
 } intstack_t;
 
 /* *** interface ************************************************************ */
