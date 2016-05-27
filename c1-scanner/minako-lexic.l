@@ -1,9 +1,19 @@
+/* Compilerbau
+ * Aufgabe 3
+ * GOYA-Gruppe: cb0
+ * Daniel Haase 560364,
+ * Kai Kronenberg 558823,
+ * Vincent Becker 564544
+ */
+
 %option noyywrap
+%option nounput
 %option nodefault
 %option yylineno
 
 %{
   #include "minako.h"
+  #define YY_NO_INPUT
   char *strdup(char*);
   int fileno(FILE *stream);
 %}
