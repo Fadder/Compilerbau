@@ -1,7 +1,9 @@
 %option noyywrap
 %option yylineno
+%option nounput
 
 %{
+  #define YY_NO_INPUT
   #include "urlscanner.h"
   char *strdup(char*);
   int fileno(FILE *stream);
