@@ -1,8 +1,10 @@
 %option noyywrap
 %option nodefault
+%option nounput
 %option yylineno
 
 %{
+  #define YY_NO_INPUT
   #include "minako.h"
   char *strdup(char*);
   int fileno(FILE *stream);
