@@ -8,7 +8,6 @@
   #include "minako.h"
   char *strdup(char*);
   int fileno(FILE *stream);
-
 %}
 
 %x BLOCKCOMMENT
