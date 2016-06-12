@@ -1,30 +1,45 @@
+/* Compilerbau
+ * Aufgabe 5
+ * GOYA-Gruppe: cb0
+ * Daniel Haase 560364,
+ * Kai Kronenberg 558823,
+ * Vincent Becker 564544
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include "minako.h"
 
-yystype yylval;
 int currentToken;
 int nextToken;
 
-void init(){
+
+// Hilfsfunktionen ////////////////////////////////////////////////////////////
+
+// liest bei Programmstart die ersten Token, ohne sie zu konsumieren
+void initReading(){
   currentToken = yylex();
   nextToken = yylex();
 }
 
+// konsumiert ein Token und liest das naechste
 void eat(){
-  //printf("ate token:%i (might be char '%c')\n", currentToken, currentToken);
   currentToken = nextToken;
   nextToken = yylex();
 }
 
+// testet, ob das aktuelle Token dem gewuenschten entspricht
 int isToken(int token){
   return (currentToken == token);
 }
 
+// testet, ob das naechste Token dem gewuenschten entspricht
 int isNextToken(int token){
   return (nextToken == token);
 }
 
+// konsumiert, das naechste Token, falls es dem gewuenschtem entspricht
+// gibt einen Fehler aus und bricht ab, falls nicht
 void isTokenAndEat(int token){
   if(isToken(token)){
     eat();
@@ -37,6 +52,110 @@ void isTokenAndEat(int token){
   }
 }
 
+// IsFirstOf-Funktionen ///////////////////////////////////////////////////////
+// beschreiben die FIRST-Mengen der Nichtterminale
+
+int isFirstOfFunctioncall(){
+  return isToken(ID);
+}
+
+int isFirstOfFactor(){
+  int res = 0;
+  res |= isToken(CONST_INT);
+  res |= isToken(CONST_FLOAT);
+  res |= isToken(CONST_BOOLEAN);
+  res |= isFirstOfFunctioncall();
+  res |= isToken(ID);
+  res |= isToken('(');
+  return res;
+}
+
+int isFirstOfTermOp(){
+  int res = 0;
+  res |= isToken('*');
+  res |= isToken('/');
+  res |= isToken(AND);
+  return res;
+}
+
+int isFirstOfOpfactor(){
+  return isFirstOfTermOp();
+}
+
+int isFirstOfTerm(){
+  return isFirstOfFactor();
+}
+
+int isFirstOfSimpexprOp(){
+  int res = 0;
+  res |= isToken('+');
+  res |= isToken('-');
+  res |= isToken(OR);
+  return res;
+}
+
+int isFirstOfOpterm(){
+  return isFirstOfSimpexprOp();
+}
+
+int isFirstOfSimpexpr(){
+  return isToken('-') || isFirstOfTerm();
+}
+
+int isFirstOfExprOp(){
+  int res = 0;
+  res |= isToken(EQ);
+  res |= isToken(NEQ);
+  res |= isToken(LEQ);
+  res |= isToken(GEQ);
+  res |= isToken(GRT);
+  res |= isToken(LSS);
+  return res;
+}
+
+int isFirstOfExpr(){
+  return isFirstOfSimpexpr();
+}
+
+int isFirstOfAssignment(){
+  return isToken(ID) || isFirstOfExpr();
+}
+
+int isFirstOfIfstatement(){
+  return isToken(KW_IF);
+}
+
+int isFirstOfReturnstatement(){
+  return isToken(KW_RETURN);
+}
+
+int isFirstOfPrintfNT(){
+  return isToken(KW_PRINTF);
+}
+
+int isFirstOfStatassignment(){
+  return isToken(ID);
+}
+
+int isFirstOfStatement(){
+  int res = 0;
+  res |= isFirstOfIfstatement();
+  res |= isFirstOfReturnstatement();
+  res |= isFirstOfPrintfNT();
+  res |= isToken(ID);
+  return res;
+}
+
+int isFirstOfBlock(){
+  return isToken('{') || isFirstOfStatement();
+}
+
+// Produktionsfunktionen //////////////////////////////////////////////////////
+// beschreiben die Regeln der Grammatik
+// sie konsumieren das jeweilige Nichtterminal
+// bei erkanntem Fehler, geben sie ihn aus und brechen die Ausfuehrung ab
+
+// type --> KW_BOOLEAN | KW_FLOAT | KW_INT | KW_VOID
 void type(){
   if( isToken(KW_BOOLEAN) ||
       isToken(KW_FLOAT) ||
@@ -51,29 +170,28 @@ void type(){
   }
 }
 
-int isFirstOfFunctioncall(){
-  return isToken(ID);
-}
-
+// functioncall --> ID()
 void functioncall(){
   isTokenAndEat(ID);
   isTokenAndEat('(');
   isTokenAndEat(')');
 }
 
-int isFirstOfFactor(){
-  int res = 0;
-  res |= isToken(CONST_INT);
-  res |= isToken(CONST_FLOAT);
-  res |= isToken(CONST_BOOLEAN);
-  res |= isFirstOfFunctioncall();
-  res |= isToken(ID);
-  res |= isToken('(');
-  return res;
+// factorWithFirstID --> ID | functioncall
+void factorWithFirstID(){
+  if(isNextToken('(')){
+    functioncall();
+  }
+  else{
+    eat();
+  }
 }
 
+// Funktionsdeklaration, um Zyklus assignment <--> factor (ueber dritte) aufzuloesen
 void assignment();
 
+// factor --> CONST_INT | CONST_FLOAT | CONST_BOOLEAN
+//          | functionscall | ID | (assignment)
 void factor(){
   if(
     isToken(CONST_INT) ||
@@ -83,12 +201,7 @@ void factor(){
     eat();
   }
   else if(isToken(ID)){
-    if(nextToken == '('){
-      functioncall();
-    }
-    else{
-      eat();
-    }
+    factorWithFirstID();
   }
   else if(isToken('(')){
     eat();
@@ -102,14 +215,8 @@ void factor(){
   }
 }
 
-int isFirstOfTermOp(){
-  int res = 0;
-  res |= isToken('*');
-  res |= isToken('/');
-  res |= isToken(AND);
-  return res;
-}
-
+// termOp --> * | / | &&
+// die Operaten, die in der Regel fuer term auftauchen
 void termOp(){
   if( isToken('*') ||
       isToken('/') ||
@@ -124,10 +231,8 @@ void termOp(){
   }
 }
 
-int isFirstOfOpfactor(){
-  return isFirstOfTermOp();
-}
-
+// opfactor --> termop factor | termop factor opfactor
+// loest den * in der Regel fuer term auf
 void opfactor(){
   while(isFirstOfOpfactor()){
     termOp();
@@ -135,10 +240,7 @@ void opfactor(){
   }
 }
 
-int isFirstOfTerm(){
-  return isFirstOfFactor();
-}
-
+// term --> factor | factor opfactor
 void term(){
   factor();
   if(isFirstOfOpfactor()){
@@ -146,14 +248,8 @@ void term(){
   }
 }
 
-int isFirstOfSimpexprOp(){
-  int res = 0;
-  res |= isToken('+');
-  res |= isToken('-');
-  res |= isToken(OR);
-  return res;
-}
-
+// simpexprOp --> + | - | ||
+// die Operaten, die in der Regel fuer simpexpr auftauchen
 void simpexprOp(){
   if( isToken('+') ||
       isToken('-') ||
@@ -168,10 +264,8 @@ void simpexprOp(){
   }
 }
 
-int isFirstOfOpterm(){
-  return isFirstOfSimpexprOp();
-}
-
+// opterm --> simpexprop term | simpexprop term opterm
+// loest den * in der Regel fuer simpexpr auf
 void opterm(){
   while(isFirstOfOpterm()){
     simpexprOp();
@@ -179,10 +273,7 @@ void opterm(){
   }
 }
 
-int isFirstOfSimpexpr(){
-  return isToken('-') || isFirstOfTerm();
-}
-
+// simpexpr --> - term | - term opterm | term | term opterm
 void simpexpr(){
   if(isToken('-')){
     eat();
@@ -193,17 +284,8 @@ void simpexpr(){
   }
 }
 
-int isFirstOfExprOp(){
-  int res = 0;
-  res |= isToken(EQ);
-  res |= isToken(NEQ);
-  res |= isToken(LEQ);
-  res |= isToken(GEQ);
-  res |= isToken(GRT);
-  res |= isToken(LSS);
-  return res;
-}
-
+// exprOp --> == | != | <= | >= | < | >
+// die Operaten, die in der Regel fuer expr auftauchen
 void exprOp(){
   if( isToken(EQ) ||
       isToken(NEQ) ||
@@ -221,10 +303,7 @@ void exprOp(){
   }
 }
 
-int isFirstOfExpr(){
-  return isFirstOfSimpexpr();
-}
-
+// expr --> simpexpr | simpexpr exprOp simpexpr
 void expr(){
   simpexpr();
   if(isFirstOfExprOp()){
@@ -233,10 +312,7 @@ void expr(){
   }
 }
 
-int isFirstOfAssignment(){
-  return isToken(ID) || isFirstOfExpr();
-}
-
+// assignment --> ID = assignment | expr
 void assignment(){
   if(isToken(ID) && isNextToken('=')){
     eat();
@@ -253,12 +329,10 @@ void assignment(){
   }
 }
 
-int isFirstOfIfstatement(){
-  return isToken(KW_IF);
-}
-
+// Funktionsdeklaration, um Zyklus block <--> ifstatement (ueber dritte) aufzuloesen
 void block();
 
+// ifstatement --> KW_IF ( assignment ) block
 void ifstatement(){
   isTokenAndEat(KW_IF);
   isTokenAndEat('(');
@@ -267,10 +341,7 @@ void ifstatement(){
   block();
 }
 
-int isFirstOfReturnstatement(){
-  return isToken(KW_RETURN);
-}
-
+// returnstatement --> KW_RETURN | KW_RETURN assignment
 void returnstatement(){
   isTokenAndEat(KW_RETURN);
   if(isFirstOfAssignment()){
@@ -278,32 +349,24 @@ void returnstatement(){
   }
 }
 
-int isFirstOfPrintf(){
-  return isToken(KW_PRINTF);
-}
-
-void printfT(){
+// printfNT --> KW_PRINTF ( assignment )
+// NT fuer Nichtterminal um Namenskonflikte mit C zu vermeiden
+void printfNT(){
   isTokenAndEat(KW_PRINTF);
   isTokenAndEat('(');
   assignment();
   isTokenAndEat(')');
 }
 
-int isFirstOfStatassignment(){
-  return isToken(ID);
-}
-
+// statassignment --> ID = assignment
 void statassignment(){
   isTokenAndEat(ID);
   isTokenAndEat('=');
   assignment();
 }
 
-int isFirstOfStatementFirstID(){
-  return isToken(ID);
-}
-
-void statementFirstID(){
+// statementWithFirstID --> statassignment | functioncall
+void statementWithFirstID(){
   if(isNextToken('(')){
     functioncall();
     isTokenAndEat(';');
@@ -319,15 +382,8 @@ void statementFirstID(){
   }
 }
 
-int isFirstOfStatement(){
-  int res = 0;
-  res |= isFirstOfIfstatement();
-  res |= isFirstOfReturnstatement();
-  res |= isFirstOfPrintf();
-  res |= isFirstOfStatementFirstID();
-  return res;
-}
-
+// statement --> ifstatement | returnstatement ; | printf ;
+//             | statassignment ; | functioncall ;
 void statement(){
   if(isFirstOfIfstatement()){
     ifstatement();
@@ -336,12 +392,12 @@ void statement(){
     returnstatement();
     isTokenAndEat(';');
   }
-  else if(isFirstOfPrintf()){
-    printfT();
+  else if(isFirstOfPrintfNT()){
+    printfNT();
     isTokenAndEat(';');
   }
-  else if(isFirstOfStatementFirstID()){
-    statementFirstID();
+  else if(isToken(ID)){
+    statementWithFirstID();
   }
   else{
     fprintf(stderr, "ERROR: Syntaxfehler in Zeile (%d)\n", yylineno);
@@ -350,12 +406,10 @@ void statement(){
   }
 }
 
+// Funktionsdeklaration, um Zyklus block <--> statementlist aufzuloesen
 void statementlist();
 
-int isFirstOfBlock(){
-  return isToken('{') || isFirstOfStatement();
-}
-
+// block --> { statementlist } | statement
 void block(){
   if(isToken('{')){
     eat('{');
@@ -372,15 +426,18 @@ void block(){
   }
 }
 
+// statementlist --> block*
+// hier keine EBNF, weil auch ohne schoen einfach zu implementieren :)
 void statementlist(){
   while(isFirstOfBlock()){
     block();
   }
 }
 
+// functiondefinition --> type ID() { statementlist }
 void functiondefinition(){
   type();
-  isTokenAndEat(ID);git
+  isTokenAndEat(ID);
   isTokenAndEat('(');
   isTokenAndEat(')');
   isTokenAndEat('{');
@@ -388,6 +445,8 @@ void functiondefinition(){
   isTokenAndEat('}');
 }
 
+// program --> functiondefinition* EOF
+// auch hier keine EBNF
 void program(){
   while(!isToken(EOF)){
     functiondefinition();
@@ -395,6 +454,7 @@ void program(){
   isTokenAndEat(EOF);
 }
 
+// Hauptfunktion //////////////////////////////////////////////////////////////
 int main(int argc, char* argv[]) {
   if (argc != 2) yyin = stdin;
   else {
@@ -405,8 +465,8 @@ int main(int argc, char* argv[]) {
     }
   }
 
-  init();
-  program();
+  initReading();
+  program(); // konsumiere Startsymbol
   return 0;
 }
 
