@@ -7,7 +7,6 @@ extern int yylineno;
 extern FILE* yyin;
 void yyerror(const char*);
 #define YYERROR_VERBOSE yes
-#define YYDEBUG 1
 %}
 
 %union {
@@ -46,7 +45,6 @@ void yyerror(const char*);
 // loese dangling-else-problem durch Festlegung von Praezedenzen
 %nonassoc NOELSE
 %nonassoc KW_ELSE
-%nonassoc UMINUS
 
 %start program
 
@@ -54,7 +52,7 @@ void yyerror(const char*);
 
 program:
     declassignment ';' program      {}
-  | functiondefinition ';' program  {}
+  | functiondefinition program  {}
   | /* NULL */                      {}
   ;
 
@@ -102,7 +100,7 @@ statement:
   ;
 
 statblock:
-    "{" statementlist "}" {}
+    '{' statementlist '}' {}
   | statement             {}
 
 ifstatement:
@@ -213,13 +211,12 @@ int main(int argc, char* argv[]) {
     }
   }
 
-  yydebug=1;
   yyparse();
 
   return 0;
 }
 
 void yyerror(const char* msg) {
-  fprintf(stderr, "ERROR: %s\n", msg);
+  fprintf(stderr, "ERROR: %s. Error occured near line %d.\n", msg, yylineno);
   exit(-1);
 }
