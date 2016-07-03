@@ -1,3 +1,10 @@
+/* Compilerbau
+ * Aufgabenbaltt 4
+ * GOYA-Gruppe: cb0
+ * Daniel Haase 560364,
+ * Kai Kronenberg 558823,
+ * Vincent Becker 564544
+ */
 %{
 #include <stdio.h>
 #include <stdlib.h>
